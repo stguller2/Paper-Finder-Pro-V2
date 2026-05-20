@@ -123,8 +123,22 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     return null;
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredReferences = useMemo(() => {
+    if (!searchQuery.trim()) return result.references;
+    const query = searchQuery.toLowerCase().trim();
+    return result.references.filter(item => {
+      const matchTitle = item.title && item.title.toLowerCase().includes(query);
+      const matchDoi = item.doi && item.doi.toLowerCase().includes(query);
+      const matchJournal = item.journal && item.journal.toLowerCase().includes(query);
+      const matchAuthors = item.authors && item.authors.some(author => author.toLowerCase().includes(query));
+      return matchTitle || matchDoi || matchJournal || matchAuthors;
+    });
+  }, [result.references, searchQuery]);
+
   const handleBatchDownloadAllPDFs = async () => {
-    if (batchState.isActive || result.references.length === 0) return;
+    if (batchState.isActive || filteredReferences.length === 0) return;
 
     cancelBatchRef.current = false;
 
@@ -133,17 +147,17 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       currentIndex: 0,
       successCount: 0,
       failCount: 0,
-      currentTitle: result.references[0]?.title || '',
+      currentTitle: filteredReferences[0]?.title || '',
       isCompleted: false,
       statusText: 'Bağlantı kuruluyor...'
     });
 
-    for (let i = 0; i < result.references.length; i++) {
+    for (let i = 0; i < filteredReferences.length; i++) {
       if (cancelBatchRef.current) {
         break;
       }
 
-      const item = result.references[i];
+      const item = filteredReferences[i];
       setBatchState(prev => {
         if (cancelBatchRef.current) return prev;
         return {
@@ -219,20 +233,6 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       statusText: 'Toplu indirme işlemi tamamlandı! / Batch download complete.'
     }));
   };
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredReferences = useMemo(() => {
-    if (!searchQuery.trim()) return result.references;
-    const query = searchQuery.toLowerCase().trim();
-    return result.references.filter(item => {
-      const matchTitle = item.title && item.title.toLowerCase().includes(query);
-      const matchDoi = item.doi && item.doi.toLowerCase().includes(query);
-      const matchJournal = item.journal && item.journal.toLowerCase().includes(query);
-      const matchAuthors = item.authors && item.authors.some(author => author.toLowerCase().includes(query));
-      return matchTitle || matchDoi || matchJournal || matchAuthors;
-    });
-  }, [result.references, searchQuery]);
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -320,7 +320,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       {batchState.isActive && (() => {
         const progressPercent = batchState.isCompleted 
           ? 100 
-          : Math.min(100, Math.round(((batchState.currentIndex + 1) / result.references.length) * 100));
+          : Math.min(100, Math.round(((batchState.currentIndex + 1) / filteredReferences.length) * 100));
         
         return (
           <div className="bg-slate-950 border border-slate-800 text-white rounded-[2rem] p-6 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
@@ -393,7 +393,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
                     <Layers size={13} />
                     TOTAL LIST
                   </span>
-                  <span className="text-2xl sm:text-3xl font-black text-slate-100">{result.references.length}</span>
+                  <span className="text-2xl sm:text-3xl font-black text-slate-100">{filteredReferences.length}</span>
                 </div>
               </div>
 
@@ -401,7 +401,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               {!batchState.isCompleted && (
                 <div className="bg-white/[0.02] border border-white/5 rounded-[1.5rem] p-4.5 space-y-3.5">
                   <div className="flex items-center justify-between text-[11px] font-bold">
-                    <span className="font-mono text-zinc-400">ŞU AN İNDİRİLEN: {batchState.currentIndex + 1} / {result.references.length}</span>
+                    <span className="font-mono text-zinc-400">ŞU AN İNDİRİLEN: {batchState.currentIndex + 1} / {filteredReferences.length}</span>
                     <span className="bg-indigo-500/25 text-indigo-300 font-mono text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">RUNNING</span>
                   </div>
                   
@@ -619,90 +619,91 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           <div className="relative z-10">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
               <Layers size={28} />
-              Batch Actions
+              Batch Actions / Toplu İşlemler
             </h3>
             <p className="mb-8 text-indigo-100 max-w-2xl leading-relaxed text-lg">
-              Export all references at once or open all download links in new tabs.
+              {searchQuery.trim()
+                ? `Filtrelenmiş akademik kaynakları (${filteredReferences.length}) tek seferde indirin veya referans formatlarını dışa aktarın.`
+                : `Bulunan tüm akademik kaynakları (${filteredReferences.length}) arka planda sırayla indirin veya referans formatlarını dışa aktarın.`}
             </p>
             <div className="flex flex-wrap gap-4">
               <Button
                 variant="custom"
-                disabled={batchState.isActive}
+                disabled={batchState.isActive || filteredReferences.length === 0}
                 className="bg-white text-indigo-900 hover:bg-indigo-50 border-none px-8 py-4 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 cursor-pointer relative"
                 onClick={handleBatchDownloadAllPDFs}
               >
                 {batchState.isActive ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
                 <span>
-                  {batchState.isActive ? 'Tümü İndiriliyor...' : `Tüm PDF'leri İndir / Download All PDFs (${result.references.length})`}
+                  {batchState.isActive 
+                    ? 'İndiriliyor / Downloading...' 
+                    : searchQuery.trim()
+                      ? `Filtrelenmiş PDF'leri İndir / Download Filtered PDFs (${filteredReferences.length})`
+                      : `Tüm PDF'leri İndir / Download All PDFs (${filteredReferences.length})`}
                 </span>
                 {batchState.isActive && (
                   <span className="absolute -top-2 -right-2 bg-rose-500 text-white font-mono text-[9px] px-2 py-0.5 rounded-full shadow-lg">
-                    {batchState.currentIndex + 1}/{result.references.length}
+                    {batchState.currentIndex + 1}/{filteredReferences.length}
                   </span>
                 )}
               </Button>
 
               <Button
                 variant="custom"
-                className="bg-indigo-800 text-white border-indigo-700 hover:bg-indigo-700 px-8 py-4 rounded-2xl font-bold border"
-                onClick={onOpenAll}
-              >
-                <OpenIcon size={20} />
-                Bağlantıları Yeni Sekmelerde Aç / Open All Links in Tabs ({result.references.length})
-              </Button>
-
-              <Button
-                variant="custom"
+                disabled={filteredReferences.length === 0}
                 className="bg-indigo-800 text-white border-indigo-700 hover:bg-indigo-700 px-8 py-4 rounded-2xl font-bold border"
                 onClick={() => {
-                  const apaContent = result.references
+                  const apaContent = filteredReferences
                     .filter(r => r.apa6)
                     .map(r => r.apa6)
                     .join('\n\n');
-                  onDownloadFile(apaContent, 'references_apa6.txt', 'text/plain');
+                  onDownloadFile(apaContent, searchQuery.trim() ? 'filtered_references_apa6.txt' : 'references_apa6.txt', 'text/plain');
                 }}
               >
                 <BookOpen size={20} />
-                Export APA 6 References
+                Export APA 6 References ({filteredReferences.length})
               </Button>
 
               <Button
                 variant="custom"
+                disabled={filteredReferences.length === 0}
                 className="bg-indigo-800 text-white border-indigo-700 hover:bg-indigo-700 px-8 py-4 rounded-2xl font-bold border"
                 onClick={() => {
-                  const risContent = result.references.map(r =>
+                  const risContent = filteredReferences.map(r =>
                     `TY  - JOUR\nTI  - ${r.title}\nDO  - ${r.doi}${r.authors ? '\n' + r.authors.map(a => `AU  - ${a}`).join('\n') : ''}${r.year ? `\nPY  - ${r.year}` : ''}${r.journal ? `\nJO  - ${r.journal}` : ''}${r.volume ? `\nVL  - ${r.volume}` : ''}${r.issue ? `\nIS  - ${r.issue}` : ''}${r.pages ? `\nSP  - ${r.pages}` : ''}\nUR  - https://doi.org/${r.doi}\nER  - `
                   ).join('\n\n');
-                  onDownloadFile(risContent, 'references.ris', 'text/plain');
+                  onDownloadFile(risContent, searchQuery.trim() ? 'filtered_references.ris' : 'references.ris', 'text/plain');
                 }}
               >
                 <Share2 size={20} />
-                Export RIS (Zotero/Mendeley)
+                Export RIS ({filteredReferences.length})
               </Button>
 
               <Button
                 variant="custom"
+                disabled={filteredReferences.length === 0}
                 className="bg-indigo-800 text-white border-indigo-700 hover:bg-indigo-700 px-8 py-4 rounded-2xl font-bold border"
                 onClick={() => {
-                  const doiContent = result.references
+                  const doiContent = filteredReferences
                     .map(r => r.doi)
                     .filter(Boolean)
                     .join('\n');
-                  onDownloadFile(doiContent, 'dois.txt', 'text/plain');
+                  onDownloadFile(doiContent, searchQuery.trim() ? 'filtered_dois.txt' : 'dois.txt', 'text/plain');
                 }}
               >
                 <Link size={20} />
-                Export DOIs (.txt)
+                Export DOIs (.txt) ({filteredReferences.length})
               </Button>
 
               <Button
                 variant="custom"
+                disabled={filteredReferences.length === 0}
                 className="text-indigo-200 hover:bg-white/10 px-8 py-4 rounded-2xl cursor-pointer"
                 onClick={() => {
-                  const text = result.references.map((r, i) =>
+                  const text = filteredReferences.map((r, i) =>
                     `[${i + 1}] ${r.apa6 || r.title}\n    Download: ${getSciHubLink(r.doi)}`
                   ).join('\n\n');
-                  onDownloadFile(text, 'reading_list.txt', 'text/plain');
+                  onDownloadFile(text, searchQuery.trim() ? 'filtered_reading_list.txt' : 'reading_list.txt', 'text/plain');
                 }}
               >
                 <FileText size={20} />

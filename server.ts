@@ -16,6 +16,9 @@ import exportRouter from "./routes/export";
 
 const app = express();
 
+// Trust upstream reverse proxy (e.g., Cloud Run, Nginx, GFE)
+app.set('trust proxy', true);
+
 // 1. Initial Early Middlewares
 app.use(requestIdMiddleware);
 app.use(httpLogger);

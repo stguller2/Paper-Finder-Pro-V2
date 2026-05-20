@@ -6,6 +6,7 @@ export const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+  validate: false,
 });
 
 export const aiScanLimiter = rateLimit({
@@ -14,4 +15,5 @@ export const aiScanLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'AI scan rate limit exceeded. Please wait a minute.' },
+  validate: false,
 });
