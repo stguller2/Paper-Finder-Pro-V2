@@ -1,0 +1,6 @@
+{
+  "name": "Paper Finder Pro",
+  "description": "Atıfları analiz eden, DOI numaralarını çıkaran ve Sci-Hub/LibGen kaynakları üzerinden hızlı indirme bağlantıları oluşturan akademik asistan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
